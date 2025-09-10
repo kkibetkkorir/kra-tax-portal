@@ -1,0 +1,50 @@
+.btn {
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  border: none;
+  justify-content: center;
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--kra-light-blue);
+  border: 1px solid var(--kra-blue);
+}
+
+.btn-outline:hover {
+  background: var(--kra-light-blue);
+  color: white;
+}
+
+.btn-primary {
+  background: var(--kra-light-blue);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: var(--kra-blue);
+  box-shadow: 0 4px 10px rgba(49, 130, 206, 0.3);
+}
+
+/* Alternative gradient version if needed */
+.btn-primary.gradient {
+  background: linear-gradient(
+    135deg,
+    var(--kra-light-blue) 0%,
+    var(--kra-blue) 100%
+  );
+}
+
+.btn-primary.gradient:hover {
+  background: linear-gradient(135deg, var(--kra-blue) 0%, #2c5282 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(49, 130, 206, 0.3);
+}
