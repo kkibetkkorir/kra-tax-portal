@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import './Header.css';
 import './Footer.css';
 import './BottomNav.css';
@@ -6,42 +8,32 @@ import { useLocation } from 'react-router-dom';
 
 export const Header = () => {
   const [activeNav, setActiveNav] = useState('Home');
+  const { currentUser, userProfile, logout } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
-    // Simulate login/register button clicks
-    const loginBtn = document.querySelector('.btn-outline');
-    const registerBtn = document.querySelector('.btn-primary');
-
-    const handleLoginClick = () => {
-      alert('Login page would open here.');
-    };
-
-    const handleRegisterClick = () => {
-      alert('Registration page would open here.');
-    };
-
-    if (loginBtn) {
-      loginBtn.addEventListener('click', handleLoginClick);
-    }
-
-    if (registerBtn) {
-      registerBtn.addEventListener('click', handleRegisterClick);
-    }
-
-    return () => {
-      if (loginBtn) {
-        loginBtn.removeEventListener('click', handleLoginClick);
-      }
-      if (registerBtn) {
-        registerBtn.removeEventListener('click', handleRegisterClick);
-      }
-    };
+    // Set active nav based on current location
+    const path = location.pathname;
+    if (path === '/') setActiveNav('Home');
+    else if (path === '/services') setActiveNav('Services');
+    else if (path.includes('/guides')) setActiveNav('Guides');
+    else if (path === '/blog') setActiveNav('Blog');
+    else if (path === '/dashboard') setActiveNav('Account');
   }, []);
 
   const handleNavClick = (item) => {
     setActiveNav(item);
   };
 
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
   return (
     <header>
       <div className="container">
@@ -105,12 +97,29 @@ export const Header = () => {
           </nav>
 
           <div className="auth-buttons">
-            <a href="/login" className="btn btn-outline">
-              Login
-            </a>
-            <a href="/register" className="btn btn-primary">
-              Register
-            </a>
+            {currentUser ? (
+              <>
+                <span style={{ 
+                  color: 'var(--kra-gray)', 
+                  fontSize: '0.9rem',
+                  marginRight: '0.5rem'
+                }}>
+                  Welcome, {userProfile?.firstName || currentUser.displayName || 'User'}
+                </span>
+                <button className="btn btn-outline" onClick={handleLogout}>
+                  <i className="fas fa-sign-out-alt"></i> Logout
+                </button>
+              </>
+            ) : (
+              <>
+                <a href="/login" className="btn btn-outline">
+                  <i className="fas fa-sign-in-alt"></i> Login
+                </a>
+                <a href="/register" className="btn btn-primary">
+                  <i className="fas fa-user-plus"></i> Register
+                </a>
+              </>
+            )}
           </div>
         </div>
       </div>

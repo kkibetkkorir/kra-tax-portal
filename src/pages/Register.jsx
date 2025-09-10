@@ -1,180 +1,221 @@
 import React from 'react';
+import { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import './Register.css';
 
-document.addEventListener('DOMContentLoaded', function () {
-  // Toggle password visibility
-  const togglePassword = document.getElementById('togglePassword');
-  const toggleConfirmPassword = document.getElementById(
-    'toggleConfirmPassword'
-  );
-  const passwordInput = document.getElementById('password');
-  const confirmPasswordInput = document.getElementById('confirmPassword');
-  const strengthMeter = document.getElementById('strengthMeter');
-
-  togglePassword.addEventListener('click', function () {
-    const type =
-      passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-    passwordInput.setAttribute('type', type);
-
-    // Toggle eye icon
-    this.querySelector('i').classList.toggle('fa-eye');
-    this.querySelector('i').classList.toggle('fa-eye-slash');
+function Register() {
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    idNumber: '',
+    userType: '',
+    phone: '',
+    password: '',
+    confirmPassword: '',
+    terms: false,
+    notifications: false
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [passwordStrength, setPasswordStrength] = useState(0);
+  
+  const { signup } = useAuth();
+  const navigate = useNavigate();
 
-  toggleConfirmPassword.addEventListener('click', function () {
-    const type =
-      confirmPasswordInput.getAttribute('type') === 'password'
-        ? 'text'
-        : 'password';
-    confirmPasswordInput.setAttribute('type', type);
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
 
-    // Toggle eye icon
-    this.querySelector('i').classList.toggle('fa-eye');
-    this.querySelector('i').classList.toggle('fa-eye-slash');
-  });
+    // Check password strength
+    if (name === 'password') {
+      checkPasswordStrength(value);
+    }
+  };
 
-  // Password strength checker
-  passwordInput.addEventListener('input', function () {
-    const password = this.value;
+  const checkPasswordStrength = (password) => {
     let strength = 0;
-
-    // Check password criteria
     const hasMinLength = password.length >= 8;
     const hasNumber = /\d/.test(password);
     const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
 
-    // Update criteria indicators
-    document
-      .getElementById('lengthCriteria')
-      .classList.toggle('criteria-met', hasMinLength);
-    document
-      .getElementById('numberCriteria')
-      .classList.toggle('criteria-met', hasNumber);
-    document
-      .getElementById('specialCriteria')
-      .classList.toggle('criteria-met', hasSpecialChar);
-
-    // Calculate strength
     if (hasMinLength) strength += 33;
     if (hasNumber) strength += 33;
     if (hasSpecialChar) strength += 34;
 
-    // Update strength meter
-    strengthMeter.style.width = strength + '%';
+    setPasswordStrength(strength);
+  };
 
-    // Update meter color
-    if (strength < 33) {
-      strengthMeter.style.background = '#e53e3e';
-    } else if (strength < 66) {
-      strengthMeter.style.background = '#dd6b20';
-    } else {
-      strengthMeter.style.background = '#38a169';
-    }
-  });
-
-  // Form submission
-  const registerForm = document.querySelector('.auth-form');
-  registerForm.addEventListener('submit', function (e) {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
 
-    // Basic validation
-    const firstName = document.getElementById('firstName').value;
-    const lastName = document.getElementById('lastName').value;
-    const email = document.getElementById('email').value;
-    const idNumber = document.getElementById('idNumber').value;
-    const userType = document.getElementById('userType').value;
-    const password = document.getElementById('password').value;
-    const confirmPassword = document.getElementById('confirmPassword').value;
-    const terms = document.getElementById('terms').checked;
-
-    if (
-      !firstName ||
-      !lastName ||
-      !email ||
-      !idNumber ||
-      !userType ||
-      !password ||
-      !confirmPassword
-    ) {
-      alert('Please fill in all required fields');
+    // Validation
+    if (!formData.firstName || !formData.lastName || !formData.email || 
+        !formData.idNumber || !formData.userType || !formData.password || 
+        !formData.confirmPassword) {
+      setError('Please fill in all required fields');
       return;
     }
 
-    if (!terms) {
-      alert('You must agree to the Terms of Service');
+    if (!formData.terms) {
+      setError('You must agree to the Terms of Service');
       return;
     }
 
-    if (password !== confirmPassword) {
-      alert('Passwords do not match');
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
       return;
     }
 
-    // In a real application, this would submit to a server
-    alert(
-      'Registration functionality would be implemented here. Redirecting to verification...'
-    );
-    // window.location.href = 'verification.html';
-  });
-});
-function Register() {
+    if (passwordStrength < 66) {
+      setError('Please choose a stronger password');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      await signup(formData.email, formData.password, {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        idNumber: formData.idNumber,
+        userType: formData.userType,
+        phone: formData.phone
+      });
+      
+      navigate('/dashboard');
+    } catch (error) {
+      console.error('Registration error:', error);
+      switch (error.code) {
+        case 'auth/email-already-in-use':
+          setError('An account with this email already exists');
+          break;
+        case 'auth/invalid-email':
+          setError('Invalid email address');
+          break;
+        case 'auth/weak-password':
+          setError('Password is too weak');
+          break;
+        default:
+          setError('Registration failed. Please try again');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div class="auth-container">
-      <div class="auth-card">
-        <div class="auth-header">
-          <div class="logo">
-            <div class="logo-icon">
-              <i class="fas fa-landmark"></i>
+    <div className="auth-container">
+      <div className="auth-card">
+        <div className="auth-header">
+          <div className="logo">
+            <div className="logo-icon">
+              <i className="fas fa-landmark"></i>
             </div>
-            <div class="logo-text">KRA Portal</div>
+            <div className="logo-text">KRA Portal</div>
           </div>
-          <h1 class="auth-title">Create Account</h1>
-          <p class="auth-subtitle">Register for KRA online services</p>
+          <h1 className="auth-title">Create Account</h1>
+          <p className="auth-subtitle">Register for KRA online services</p>
         </div>
 
-        <div class="auth-body">
-          <div class="auth-form">
-            <div class="form-row">
-              <div class="form-group">
-                <label for="firstName">First Name</label>
+        <div className="auth-body">
+          {error && (
+            <div style={{
+              background: '#fed7d7',
+              color: '#c53030',
+              padding: '0.75rem',
+              borderRadius: '8px',
+              marginBottom: '1rem',
+              fontSize: '0.9rem',
+              textAlign: 'center'
+            }}>
+              {error}
+            </div>
+          )}
+
+          <form className="auth-form" onSubmit={handleSubmit}>
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="firstName">First Name</label>
                 <input
                   type="text"
                   id="firstName"
+                  name="firstName"
+                  value={formData.firstName}
+                  onChange={handleInputChange}
                   placeholder="Enter your first name"
+                  required
                 />
               </div>
 
-              <div class="form-group">
-                <label for="lastName">Last Name</label>
+              <div className="form-group">
+                <label htmlFor="lastName">Last Name</label>
                 <input
                   type="text"
                   id="lastName"
+                  name="lastName"
+                  value={formData.lastName}
+                  onChange={handleInputChange}
                   placeholder="Enter your last name"
+                  required
                 />
               </div>
             </div>
 
-            <div class="form-group">
-              <label for="email">Email Address</label>
+            <div className="form-group">
+              <label htmlFor="email">Email Address</label>
               <input
                 type="email"
                 id="email"
+                name="email"
+                value={formData.email}
+                onChange={handleInputChange}
                 placeholder="Enter your email address"
+                required
               />
             </div>
 
-            <div class="form-group">
-              <label for="idNumber">ID Number</label>
+            <div className="form-group">
+              <label htmlFor="idNumber">ID Number</label>
               <input
                 type="text"
                 id="idNumber"
+                name="idNumber"
+                value={formData.idNumber}
+                onChange={handleInputChange}
                 placeholder="Enter your ID number"
+                required
               />
             </div>
 
-            <div class="form-group">
-              <label for="userType">I am a:</label>
-              <select id="userType">
+            <div className="form-group">
+              <label htmlFor="phone">Phone Number (Optional)</label>
+              <input
+                type="tel"
+                id="phone"
+                name="phone"
+                value={formData.phone}
+                onChange={handleInputChange}
+                placeholder="Enter your phone number"
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="userType">I am a:</label>
+              <select 
+                id="userType" 
+                name="userType"
+                value={formData.userType}
+                onChange={handleInputChange}
+                required
+              >
                 <option value="">Select user type</option>
                 <option value="individual">Individual Taxpayer</option>
                 <option value="business">Business Owner</option>
@@ -183,90 +224,125 @@ function Register() {
               </select>
             </div>
 
-            <div class="form-group password-toggle">
-              <label for="password">Password</label>
+            <div className="form-group password-toggle">
+              <label htmlFor="password">Password</label>
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 id="password"
+                name="password"
+                value={formData.password}
+                onChange={handleInputChange}
                 placeholder="Create a password"
+                required
               />
-              <span class="toggle-password" id="togglePassword">
-                <i class="fas fa-eye"></i>
+              <span 
+                className="toggle-password" 
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                <i className={showPassword ? "fas fa-eye-slash" : "fas fa-eye"}></i>
               </span>
 
-              <div class="password-strength">
-                <div class="strength-meter" id="strengthMeter"></div>
+              <div className="password-strength">
+                <div 
+                  className="strength-meter" 
+                  style={{
+                    width: `${passwordStrength}%`,
+                    background: passwordStrength < 33 ? '#e53e3e' : 
+                               passwordStrength < 66 ? '#dd6b20' : '#38a169'
+                  }}
+                ></div>
               </div>
 
-              <div class="password-criteria">
-                <div class="criteria-item" id="lengthCriteria">
-                  <i class="fas fa-circle"></i>
+              <div className="password-criteria">
+                <div className={`criteria-item ${formData.password.length >= 8 ? 'criteria-met' : ''}`}>
+                  <i className="fas fa-circle"></i>
                   <span>At least 8 characters</span>
                 </div>
-                <div class="criteria-item" id="numberCriteria">
-                  <i class="fas fa-circle"></i>
+                <div className={`criteria-item ${/\d/.test(formData.password) ? 'criteria-met' : ''}`}>
+                  <i className="fas fa-circle"></i>
                   <span>Contains a number</span>
                 </div>
-                <div class="criteria-item" id="specialCriteria">
-                  <i class="fas fa-circle"></i>
+                <div className={`criteria-item ${/[!@#$%^&*(),.?":{}|<>]/.test(formData.password) ? 'criteria-met' : ''}`}>
+                  <i className="fas fa-circle"></i>
                   <span>Contains a special character</span>
                 </div>
               </div>
             </div>
 
-            <div class="form-group password-toggle">
-              <label for="confirmPassword">Confirm Password</label>
+            <div className="form-group password-toggle">
+              <label htmlFor="confirmPassword">Confirm Password</label>
               <input
-                type="password"
+                type={showConfirmPassword ? 'text' : 'password'}
                 id="confirmPassword"
+                name="confirmPassword"
+                value={formData.confirmPassword}
+                onChange={handleInputChange}
                 placeholder="Confirm your password"
+                required
               />
-              <span class="toggle-password" id="toggleConfirmPassword">
-                <i class="fas fa-eye"></i>
+              <span 
+                className="toggle-password" 
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              >
+                <i className={showConfirmPassword ? "fas fa-eye-slash" : "fas fa-eye"}></i>
               </span>
             </div>
 
-            <div class="form-options">
-              <input type="checkbox" id="terms" />
-              <label for="terms">
+            <div className="form-options">
+              <input 
+                type="checkbox" 
+                id="terms" 
+                name="terms"
+                checked={formData.terms}
+                onChange={handleInputChange}
+                required
+              />
+              <label htmlFor="terms">
                 I agree to the <a href="#">Terms of Service</a> and{' '}
                 <a href="#">Privacy Policy</a>
               </label>
             </div>
 
-            <div class="form-options">
-              <input type="checkbox" id="notifications" />
-              <label for="notifications">
+            <div className="form-options">
+              <input 
+                type="checkbox" 
+                id="notifications" 
+                name="notifications"
+                checked={formData.notifications}
+                onChange={handleInputChange}
+              />
+              <label htmlFor="notifications">
                 Send me important updates and notifications
               </label>
             </div>
 
-            <button class="btn btn-primary">
-              <i class="fas fa-user-plus"></i> Create Account
+            <button type="submit" className="btn btn-primary" disabled={loading}>
+              <i className={loading ? "fas fa-spinner fa-spin" : "fas fa-user-plus"}></i> 
+              {loading ? 'Creating Account...' : 'Create Account'}
             </button>
 
-            <div class="auth-divider">
+            <div className="auth-divider">
               <span>Or register with</span>
             </div>
 
-            <button class="btn btn-outline">
-              <i class="fas fa-mobile-alt"></i> Register with M-Pesa
+            <button type="button" className="btn btn-outline">
+              <i className="fas fa-mobile-alt"></i> Register with M-Pesa
             </button>
-          </div>
+          </form>
 
-          <div class="auth-footer">
+          <div className="auth-footer">
             <p>
-              Already have an account? <a href="login.html">Sign in</a>
+              Already have an account? <Link to="/login">Sign in</Link>
             </p>
           </div>
         </div>
       </div>
 
-      <div class="auth-switch">
+      <div className="auth-switch">
         <p>Need help with registration?</p>
-        <button class="btn btn-outline">
-          <i class="fas fa-headset"></i> Contact Support
-        </button>
+        <Link to="/support-center" className="btn btn-outline">
+          <i className="fas fa-headset"></i> Contact Support
+        </Link>
       </div>
     </div>
   );

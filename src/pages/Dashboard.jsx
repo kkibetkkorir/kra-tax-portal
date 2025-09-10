@@ -1,9 +1,17 @@
 import React, { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import './Dashboard.css';
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('profile');
   const [activePage, setActivePage] = useState('dashboard');
+  const [profileData, setProfileData] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  
+  const { currentUser, userProfile, logout, updateUserProfile } = useAuth();
+  const navigate = useNavigate();
 
   // Sample data for the dashboard
   const dashboardData = {
@@ -77,6 +85,39 @@ const Dashboard = () => {
     setActivePage(page);
   };
 
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+
+  const handleProfileUpdate = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
+
+    try {
+      await updateUserProfile(profileData);
+      setMessage('Profile updated successfully!');
+    } catch (error) {
+      console.error('Profile update error:', error);
+      setMessage('Failed to update profile. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setProfileData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
   return (
     <div className="dashboard-container">
       {/* Header */}
@@ -141,8 +182,21 @@ const Dashboard = () => {
             </nav>
 
             <div className="auth-buttons">
-              <button className="btn btn-outline">Login</button>
-              <button className="btn btn-primary">Register</button>
+              {currentUser ? (
+                <>
+                  <span style={{ color: 'var(--kra-gray)', fontSize: '0.9rem' }}>
+                    Welcome, {userProfile?.firstName || currentUser.displayName}
+                  </span>
+                  <button className="btn btn-outline" onClick={handleLogout}>
+                    <i className="fas fa-sign-out-alt"></i> Logout
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button className="btn btn-outline">Login</button>
+                  <button className="btn btn-primary">Register</button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -530,9 +584,10 @@ const Dashboard = () => {
                   <i className="fas fa-user"></i>
                 </div>
                 <div className="account-info">
-                  <h2>John Mwangi</h2>
-                  <p>john.mwangi@example.com</p>
-                  <p>KRA PIN: A003456789X</p>
+                  <h2>{userProfile?.firstName} {userProfile?.lastName}</h2>
+                  <p>{currentUser?.email}</p>
+                  <p>KRA PIN: {userProfile?.kraPin || 'Not provided'}</p>
+                  <p>User Type: {userProfile?.userType || 'Individual'}</p>
                 </div>
               </div>
 
@@ -585,8 +640,22 @@ const Dashboard = () => {
               {/* Profile Tab */}
               {activeTab === 'profile' && (
                 <div className="tab-content active">
+                  {message && (
+                    <div style={{
+                      background: message.includes('success') ? '#c6f6d5' : '#fed7d7',
+                      color: message.includes('success') ? '#276749' : '#c53030',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      marginBottom: '1rem',
+                      fontSize: '0.9rem',
+                      textAlign: 'center'
+                    }}>
+                      {message}
+                    </div>
+                  )}
+
                   <div className="form-container" style={{ maxWidth: '100%' }}>
-                    <form>
+                    <form onSubmit={handleProfileUpdate}>
                       <div
                         style={{
                           display: 'grid',
@@ -599,7 +668,9 @@ const Dashboard = () => {
                           <input
                             type="text"
                             id="firstname"
-                            defaultValue="John"
+                            name="firstName"
+                            value={profileData.firstName || userProfile?.firstName || ''}
+                            onChange={handleInputChange}
                           />
                         </div>
 
@@ -608,7 +679,9 @@ const Dashboard = () => {
                           <input
                             type="text"
                             id="lastname"
-                            defaultValue="Mwangi"
+                            name="lastName"
+                            value={profileData.lastName || userProfile?.lastName || ''}
+                            onChange={handleInputChange}
                           />
                         </div>
                       </div>
@@ -618,7 +691,9 @@ const Dashboard = () => {
                         <input
                           type="email"
                           id="email"
-                          defaultValue="john.mwangi@example.com"
+                          name="email"
+                          value={profileData.email || currentUser?.email || ''}
+                          onChange={handleInputChange}
                         />
                       </div>
 
@@ -627,7 +702,9 @@ const Dashboard = () => {
                         <input
                           type="tel"
                           id="phone"
-                          defaultValue="+254 712 345 678"
+                          name="phone"
+                          value={profileData.phone || userProfile?.phone || ''}
+                          onChange={handleInputChange}
                         />
                       </div>
 
@@ -636,12 +713,27 @@ const Dashboard = () => {
                         <input
                           type="text"
                           id="address"
-                          defaultValue="123 Main Street, Nairobi"
+                          name="address"
+                          value={profileData.address || userProfile?.address || ''}
+                          onChange={handleInputChange}
                         />
                       </div>
 
-                      <button type="submit" className="btn btn-primary">
-                        Update Profile
+                      <div className="form-group">
+                        <label htmlFor="kraPin">KRA PIN</label>
+                        <input
+                          type="text"
+                          id="kraPin"
+                          name="kraPin"
+                          value={profileData.kraPin || userProfile?.kraPin || ''}
+                          onChange={handleInputChange}
+                          placeholder="Enter your KRA PIN"
+                        />
+                      </div>
+
+                      <button type="submit" className="btn btn-primary" disabled={loading}>
+                        <i className={loading ? "fas fa-spinner fa-spin" : "fas fa-save"}></i>
+                        {loading ? 'Updating...' : 'Update Profile'}
                       </button>
                     </form>
                   </div>

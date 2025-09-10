@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import './Login.css';
 
 function Login() {
@@ -6,6 +8,11 @@ function Login() {
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  
+  const { signin } = useAuth();
+  const navigate = useNavigate();
 
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
@@ -13,18 +20,42 @@ function Login() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    setError('');
 
     // Basic validation
     if (!email || !password) {
-      alert('Please fill in all fields');
+      setError('Please fill in all fields');
       return;
     }
 
-    // In a real application, this would submit to a server
-    alert(
-      'Login functionality would be implemented here. Redirecting to dashboard...'
-    );
-    // window.location.href = 'dashboard.html';
+    setLoading(true);
+
+    signin(email, password)
+      .then(() => {
+        navigate('/dashboard');
+      })
+      .catch((error) => {
+        console.error('Login error:', error);
+        switch (error.code) {
+          case 'auth/user-not-found':
+            setError('No account found with this email address');
+            break;
+          case 'auth/wrong-password':
+            setError('Incorrect password');
+            break;
+          case 'auth/invalid-email':
+            setError('Invalid email address');
+            break;
+          case 'auth/too-many-requests':
+            setError('Too many failed attempts. Please try again later');
+            break;
+          default:
+            setError('Login failed. Please try again');
+        }
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   };
 
   return (
@@ -42,6 +73,20 @@ function Login() {
         </div>
 
         <div className="auth-body">
+          {error && (
+            <div style={{
+              background: '#fed7d7',
+              color: '#c53030',
+              padding: '0.75rem',
+              borderRadius: '8px',
+              marginBottom: '1rem',
+              fontSize: '0.9rem',
+              textAlign: 'center'
+            }}>
+              {error}
+            </div>
+          )}
+
           <form className="auth-form" onSubmit={handleSubmit}>
             <div className="form-group">
               <label htmlFor="email">Email Address</label>
@@ -89,7 +134,8 @@ function Login() {
             </div>
 
             <button type="submit" className="btn btn-primary">
-              <i className="fas fa-sign-in-alt"></i> Sign In
+              <i className={loading ? "fas fa-spinner fa-spin" : "fas fa-sign-in-alt"}></i> 
+              {loading ? 'Signing In...' : 'Sign In'}
             </button>
 
             <div className="auth-divider">
@@ -103,7 +149,7 @@ function Login() {
 
           <div className="auth-footer">
             <p>
-              Don't have an account? <a href="register.html">Create account</a>
+              Don't have an account? <Link to="/register">Create account</Link>
             </p>
           </div>
         </div>
@@ -111,9 +157,9 @@ function Login() {
 
       <div className="auth-switch">
         <p>Need help with your account?</p>
-        <button className="btn btn-outline">
+        <Link to="/support-center" className="btn btn-outline">
           <i className="fas fa-headset"></i> Contact Support
-        </button>
+        </Link>
       </div>
     </div>
   );
